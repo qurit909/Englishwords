@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VocabMaster - 영어 단어 학습 대시보드</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts: Inter & Noto Sans KR -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans KR', sans-serif;
+      background-color: #ffffff;
+      color: #1e293b;
+    }
+    .active-tab {
+      border-bottom: 3px solid #2563eb;
+      color: #2563eb;
+      font-weight: 700;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-white min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="border-b border-slate-200 bg-white sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center h-16">
+        <!-- Logo -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center font-bold text-xl shadow-md shadow-blue-200">
+            V
+          </div>
+          <div>
+            <h1 class="text-xl font-bold text-slate-800 tracking-tight">VocabMaster</h1>
+            <p class="text-xs text-slate-500">구글 시트 연동 단어장 대시보드</p>
+          </div>
+        </div>
+
+        <!-- Google Sheet Link & Sync Modal Button -->
+        <div class="flex items-center space-x-3">
+          <button id="syncStatusBtn" onclick="openSheetModal()" class="flex items-center space-x-2 text-xs sm:text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg transition-colors border border-slate-200">
+            <i class="fa-solid fa-table text-emerald-600"></i>
+            <span id="sheetStatusText">시트 연동 설정</span>
+            <span id="syncBadge" class="w-2 h-2 rounded-full bg-amber-400"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs (2 Main Pages) -->
+      <nav class="flex space-x-8 mt-1" aria-label="Tabs">
+        <button id="tabAlphabetBtn" onclick="switchTab('alphabet')" class="active-tab py-3 px-1 text-sm sm:text-base font-medium flex items-center space-x-2 transition-all">
+          <i class="fa-solid fa-arrow-down-a-z"></i>
+          <span>알파벳순 단어장</span>
+          <span id="alphabetCount" class="ml-2 bg-slate-100 text-slate-600 text-xs px-2 py-0.5 rounded-full border border-slate-200">0</span>
+        </button>
+        <button id="tabSearchBtn" onclick="switchTab('search')" class="text-slate-500 hover:text-slate-700 py-3 px-1 text-sm sm:text-base font-medium flex items-center space-x-2 transition-all">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <span>단어 검색 페이지</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- PAGE 1: Alphabetical Order Page -->
+    <section id="pageAlphabet" class="space-y-6">
+      <!-- Quick Stats & A-Z Quick Nav -->
+      <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-800">알파벳 색인 (A-Z)</h2>
+            <p class="text-xs text-slate-500">원하는 알파벳을 클릭하여 빠르게 단어를 조회하세요.</p>
+          </div>
+          
+          <!-- Filter Controls -->
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="filterByLetter('ALL')" id="filter-ALL" class="az-btn px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white shadow-sm">
+              ALL
+            </button>
+            <button onclick="toggleBookmarkFilter()" id="bookmarkFilterBtn" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center space-x-1">
+              <i class="fa-regular fa-star text-amber-500"></i>
+              <span>중요 단어만</span>
+            </button>
+            <button onclick="toggleHideMeaning()" id="hideMeaningBtn" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center space-x-1">
+              <i class="fa-solid fa-eye-slash text-slate-500"></i>
+              <span>뜻 가리기</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- A-Z Alphabet Bar -->
+        <div id="alphabetBar" class="flex flex-wrap gap-1.5 pt-2 border-t border-slate-200">
+          <!-- Dynamically populated letters -->
+        </div>
+      </div>
+
+      <!-- Word List Header Info -->
+      <div class="flex justify-between items-center px-1">
+        <div class="text-sm font-semibold text-slate-700">
+          <span id="currentLetterTitle" class="text-blue-600 font-bold text-base">전체 (ALL)</span> 목록
+        </div>
+        <div class="text-xs text-slate-500">
+          총 <span id="displayedCount" class="font-bold text-slate-800">0</span>개 단어 표시 중
+        </div>
+      </div>
+
+      <!-- Word Cards Grid -->
+      <div id="alphabetGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Dynamically Inserted Cards -->
+      </div>
+    </section>
+
+    <!-- PAGE 2: Dedicated Search Page -->
+    <section id="pageSearch" class="hidden space-y-6">
+      <!-- Search Input Area -->
+      <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-6 sm:p-8 text-center shadow-sm">
+        <h2 class="text-2xl font-bold text-slate-800 mb-2">실시간 단어 & 특징 검색</h2>
+        <p class="text-sm text-slate-600 mb-6 max-w-xl mx-auto">영어 단어, 한글 뜻, 품사 또는 특징 속 키워드를 검색해 보세요.</p>
+        
+        <div class="max-w-2xl mx-auto relative">
+          <div class="relative">
+            <input type="text" id="searchInput" oninput="handleSearch()" placeholder="검색할 단어나 뜻을 입력하세요 (예: apple, 사과, noun)..." 
+              class="w-full pl-12 pr-10 py-4 text-base sm:text-lg bg-white border-2 border-blue-200 rounded-2xl shadow-lg focus:outline-none focus:border-blue-500 transition-all text-slate-800 placeholder-slate-400">
+            <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-blue-500 text-xl"></i>
+            <button id="clearSearchBtn" onclick="clearSearch()" class="hidden absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <i class="fa-solid fa-circle-xmark text-lg"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Search Tags -->
+        <div class="flex flex-wrap justify-center items-center gap-2 mt-4 text-xs text-slate-500">
+          <span>추천 검색어:</span>
+          <button onclick="setSearchQuery('noun')" class="px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-700 rounded-full border border-blue-200">#명사</button>
+          <button onclick="setSearchQuery('verb')" class="px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-700 rounded-full border border-blue-200">#동사</button>
+          <button onclick="setSearchQuery('adjective')" class="px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-700 rounded-full border border-blue-200">#형용사</button>
+        </div>
+      </div>
+
+      <!-- Search Results Info Bar -->
+      <div id="searchResultHeader" class="hidden flex justify-between items-center px-1">
+        <div class="text-sm text-slate-600">
+          '<span id="searchKeywordText" class="font-bold text-blue-600"></span>' 검색 결과: 
+          <span id="searchCountText" class="font-bold text-slate-800">0</span>개 단어
+        </div>
+      </div>
+
+      <!-- Search Results Container -->
+      <div id="searchGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Search Initial State Placeholder -->
+        <div id="searchPlaceholder" class="col-span-full py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50">
+          <i class="fa-solid fa-magnifying-glass text-4xl text-slate-300 mb-3"></i>
+          <p class="text-slate-500 font-medium">검색어를 입력하시면 관련된 단어가 여기에 나타납니다.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Google Sheet Sync Modal -->
+  <div id="sheetModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 class="text-lg font-bold text-slate-800 flex items-center space-x-2">
+          <i class="fa-solid fa-file-csv text-emerald-600"></i>
+          <span>구글 시트 연동 설정</span>
+        </h3>
+        <button onclick="closeSheetModal()" class="text-slate-400 hover:text-slate-600">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200">
+        <p class="font-bold text-slate-800">📌 메모장 HTML 로컬 연동 가이드:</p>
+        <ol class="list-decimal pl-4 space-y-1.5">
+          <li>구글 시트 1행 헤더: <code class="bg-white px-1 py-0.5 rounded text-blue-600 font-bold border">word, meaning, partOfSpeech, feature</code> (또는 <code class="bg-white px-1 py-0.5 rounded text-blue-600 font-bold border">단어, 뜻, 품사, 특징</code>)</li>
+          <li>구글 시트 상단 <strong>[파일] &gt; [공유] &gt; [웹에 게시]</strong> ➔ <strong>[게시]</strong> 클릭</li>
+          <li>브라우저 주소창의 구글 시트 URL을 아래에 붙여넣으세요.</li>
+        </ol>
+      </div>
+
+      <div class="space-y-2">
+        <label class="block text-xs font-semibold text-slate-700">구글 시트 브라우저 URL 또는 게시 URL</label>
+        <input type="text" id="sheetUrlInput" placeholder="https://docs.google.com/spreadsheets/d/..." 
+          class="w-full text-xs p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none">
+      </div>
+
+      <div id="modalMessage" class="hidden text-xs p-3 rounded-lg leading-relaxed"></div>
+
+      <div class="flex space-x-2 pt-2">
+        <button onclick="loadGoogleSheet()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-xl text-xs transition-colors flex items-center justify-center space-x-2">
+          <i class="fa-solid fa-rotate"></i>
+          <span>시트 데이터 동기화</span>
+        </button>
+        <button onclick="loadSampleData()" class="px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 rounded-xl text-xs transition-colors">
+          연동 해제
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Logic -->
+  <script>
+    const defaultVocabData = [];
+
+    let vocabList = [];
+    let currentSelectedLetter = 'ALL';
+    let onlyBookmarks = false;
+    let hideMeanings = false;
+    let activeTab = 'alphabet';
+    let fetchTimeoutTimer = null;
+
+    window.onload = function() {
+      const savedUrl = localStorage.getItem('vocab_sheet_url');
+      if (savedUrl) {
+        document.getElementById('sheetUrlInput').value = savedUrl;
+        fetchGoogleSheetData(savedUrl, true);
+      } else {
+        vocabList = [...defaultVocabData];
+        sortVocabAlphabetically();
+        renderApp();
+      }
+
+      renderAlphabetNav();
+    };
+
+    function sortVocabAlphabetically() {
+      vocabList.sort((a, b) => a.word.localeCompare(b.word, 'en', { sensitivity: 'base' }));
+    }
+
+    function switchTab(tab) {
+      activeTab = tab;
+      const tabAlphabetBtn = document.getElementById('tabAlphabetBtn');
+      const tabSearchBtn = document.getElementById('tabSearchBtn');
+      const pageAlphabet = document.getElementById('pageAlphabet');
+      const pageSearch = document.getElementById('pageSearch');
+
+      if (tab === 'alphabet') {
+        tabAlphabetBtn.className = "active-tab py-3 px-1 text-sm sm:text-base font-medium flex items-center space-x-2 transition-all";
+        tabSearchBtn.className = "text-slate-500 hover:text-slate-700 py-3 px-1 text-sm sm:text-base font-medium flex items-center space-x-2 transition-all";
+        pageAlphabet.classList.remove('hidden');
+        pageSearch.classList.add('hidden');
+        renderAlphabetGrid();
+      } else {
+        tabSearchBtn.className = "active-tab py-3 px-1 text-sm sm:text-base font-medium flex items-center space-x-2 transition-all";
+        tabAlphabetBtn.className = "text-slate-500 hover:text-slate-700 py-3 px-1 text-sm sm:text-base font-medium flex items-center space-x-2 transition-all";
+        pageSearch.classList.remove('hidden');
+        pageAlphabet.classList.add('hidden');
+        document.getElementById('searchInput').focus();
+        handleSearch();
+      }
+    }
+
+    function renderAlphabetNav() {
+      const bar = document.getElementById('alphabetBar');
+      const alphabets = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+      
+      let html = '';
+      alphabets.forEach(letter => {
+        html += `
+          <button onclick="filterByLetter('${letter}')" id="filter-${letter}" 
+            class="az-btn px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+            ${letter}
+          </button>
+        `;
+      });
+      bar.innerHTML = html;
+    }
+
+    function filterByLetter(letter) {
+      currentSelectedLetter = letter;
+      
+      document.querySelectorAll('.az-btn').forEach(btn => {
+        btn.className = "az-btn px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition-colors";
+      });
+      
+      const targetBtn = document.getElementById(`filter-${letter}`);
+      if (targetBtn) {
+        targetBtn.className = "az-btn px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-600 text-white shadow-sm";
+      }
+
+      document.getElementById('currentLetterTitle').innerText = letter === 'ALL' ? '전체 (ALL)' : `'${letter}' 알파벳`;
+      renderAlphabetGrid();
+    }
+
+    function toggleBookmarkFilter() {
+      onlyBookmarks = !onlyBookmarks;
+      const btn = document.getElementById('bookmarkFilterBtn');
+      if (onlyBookmarks) {
+        btn.classList.add('bg-amber-50', 'border-amber-300', 'text-amber-700');
+        btn.classList.remove('bg-white', 'border-slate-300', 'text-slate-700');
+      } else {
+        btn.classList.remove('bg-amber-50', 'border-amber-300', 'text-amber-700');
+        btn.classList.add('bg-white', 'border-slate-300', 'text-slate-700');
+      }
+      renderAlphabetGrid();
+    }
+
+    function toggleHideMeaning() {
+      hideMeanings = !hideMeanings;
+      const btn = document.getElementById('hideMeaningBtn');
+      if (hideMeanings) {
+        btn.classList.add('bg-slate-800', 'text-white');
+        btn.classList.remove('bg-white', 'text-slate-700');
+        btn.innerHTML = `<i class="fa-solid fa-eye text-white"></i><span>뜻 보이기</span>`;
+      } else {
+        btn.classList.remove('bg-slate-800', 'text-white');
+        btn.classList.add('bg-white', 'text-slate-700');
+        btn.innerHTML = `<i class="fa-solid fa-eye-slash text-slate-500"></i><span>뜻 가리기</span>`;
+      }
+      renderAlphabetGrid();
+    }
+
+    function renderAlphabetGrid() {
+      const container = document.getElementById('alphabetGrid');
+      
+      let filtered = vocabList.filter(item => {
+        const matchesLetter = currentSelectedLetter === 'ALL' || item.word.toUpperCase().startsWith(currentSelectedLetter);
+        const matchesBookmark = !onlyBookmarks || item.bookmarked;
+        return matchesLetter && matchesBookmark;
+      });
+
+      document.getElementById('displayedCount').innerText = filtered.length;
+      document.getElementById('alphabetCount').innerText = vocabList.length;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full py-16 text-center text-slate-400 border border-dashed border-slate-200 rounded-2xl bg-slate-50">
+            <i class="fa-solid fa-table text-4xl text-slate-300 mb-3"></i>
+            <p class="text-slate-600 font-medium text-base mb-1">등록된 단어가 없거나 해당되는 단어가 없습니다.</p>
+            <p class="text-xs text-slate-400 mb-4">구글 시트를 연동하여 단어를 추가하세요.</p>
+            <button onclick="openSheetModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors">
+              <i class="fa-solid fa-link mr-1"></i> 구글 시트 연동하기
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map(item => createWordCardHTML(item)).join('');
+    }
+
+    function handleSearch() {
+      const query = document.getElementById('searchInput').value.trim().toLowerCase();
+      const clearBtn = document.getElementById('clearSearchBtn');
+      const container = document.getElementById('searchGrid');
+      const header = document.getElementById('searchResultHeader');
+
+      if (query.length > 0) {
+        clearBtn.classList.remove('hidden');
+        header.classList.remove('hidden');
+      } else {
+        clearBtn.classList.add('hidden');
+        header.classList.add('hidden');
+        container.innerHTML = `
+          <div id="searchPlaceholder" class="col-span-full py-16 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50">
+            <i class="fa-solid fa-magnifying-glass text-4xl text-slate-300 mb-3"></i>
+            <p class="text-slate-500 font-medium">단어, 뜻, 품사, 또는 특징 속 키워드를 검색하세요.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const results = vocabList.filter(item => 
+        item.word.toLowerCase().includes(query) ||
+        item.meaning.toLowerCase().includes(query) ||
+        (item.partOfSpeech && item.partOfSpeech.toLowerCase().includes(query)) ||
+        (item.feature && item.feature.toLowerCase().includes(query))
+      );
+
+      document.getElementById('searchKeywordText').innerText = query;
+      document.getElementById('searchCountText').innerText = results.length;
+
+      if (results.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full py-12 text-center bg-slate-50 rounded-2xl border border-slate-200">
+            <i class="fa-solid fa-triangle-exclamation text-amber-500 text-3xl mb-2"></i>
+            <p class="text-slate-700 font-medium text-base">검색 결과가 없습니다.</p>
+            <p class="text-xs text-slate-400 mt-1">철자가 정확한지 확인하시거나 다른 키워드로 검색해 보세요.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = results.map(item => createWordCardHTML(item, query)).join('');
+    }
+
+    function setSearchQuery(query) {
+      document.getElementById('searchInput').value = query;
+      handleSearch();
+    }
+
+    function clearSearch() {
+      document.getElementById('searchInput').value = '';
+      handleSearch();
+    }
+
+    function createWordCardHTML(item, highlightQuery = '') {
+      const isMeaningHidden = hideMeanings;
+      
+      let displayWord = item.word;
+      let displayMeaning = item.meaning;
+      let displayFeature = item.feature || '';
+
+      if (highlightQuery) {
+        const regex = new RegExp(`(${highlightQuery})`, 'gi');
+        displayWord = item.word.replace(regex, `<mark class="bg-amber-200 text-slate-900 px-0.5 rounded">$1</mark>`);
+        displayMeaning = item.meaning.replace(regex, `<mark class="bg-amber-200 text-slate-900 px-0.5 rounded">$1</mark>`);
+        if (displayFeature) {
+          displayFeature = displayFeature.replace(regex, `<mark class="bg-amber-200 text-slate-900 px-0.5 rounded">$1</mark>`);
+        }
+      }
+
+      return `
+        <div class="bg-white border border-slate-200 hover:border-blue-300 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group">
+          <div>
+            <div class="flex justify-between items-start mb-2">
+              <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+                <h3 class="text-xl font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
+                  ${displayWord}
+                </h3>
+                ${item.partOfSpeech ? `<span class="text-[10px] font-bold uppercase px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md tracking-wider border border-blue-100">${item.partOfSpeech}</span>` : ''}
+              </div>
+              <div class="flex items-center space-x-1">
+                <button onclick="speakWord('${item.word.replace(/'/g, "\\'")}')" title="발음 듣기" class="text-slate-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+                  <i class="fa-solid fa-volume-high"></i>
+                </button>
+                <button onclick="toggleBookmark('${item.id}')" title="중요 표시" class="p-1.5 rounded-lg hover:bg-slate-100 transition-colors">
+                  <i class="${item.bookmarked ? 'fa-solid text-amber-400' : 'fa-regular text-slate-300'} fa-star"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="mt-2">
+              <div class="meaning-text text-sm font-medium text-slate-700 cursor-pointer p-2.5 rounded-lg ${isMeaningHidden ? 'bg-slate-100 text-transparent select-none border border-dashed border-slate-300' : 'bg-slate-50 text-slate-800 border border-slate-100'}"
+                onclick="this.classList.toggle('text-transparent'); this.classList.toggle('bg-slate-100'); this.classList.toggle('bg-slate-50');">
+                ${displayMeaning}
+              </div>
+            </div>
+
+            ${item.feature ? `
+              <div class="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-600 flex items-start space-x-2">
+                <span class="inline-block px-1.5 py-0.5 bg-amber-50 text-amber-700 border border-amber-200 rounded text-[10px] font-bold flex-shrink-0 mt-0.5">특징</span>
+                <span class="leading-relaxed text-slate-600">${displayFeature}</span>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function toggleBookmark(id) {
+      const item = vocabList.find(v => v.id === id);
+      if (item) {
+        item.bookmarked = !item.bookmarked;
+        if (activeTab === 'alphabet') renderAlphabetGrid();
+        else handleSearch();
+      }
+    }
+
+    function speakWord(word) {
+      if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(word);
+        utterance.lang = 'en-US';
+        speechSynthesis.speak(utterance);
+      } else {
+        showModalMessage('이 브라우저는 음성 재생을 지원하지 않습니다.', 'error');
+      }
+    }
+
+    function openSheetModal() {
+      document.getElementById('sheetModal').classList.remove('hidden');
+    }
+
+    function closeSheetModal() {
+      document.getElementById('sheetModal').classList.add('hidden');
+    }
+
+    function extractSheetId(inputUrl) {
+      const match = inputUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+      return match ? match[1] : null;
+    }
+
+    function extractGid(inputUrl) {
+      const match = inputUrl.match(/gid=([0-9]+)/);
+      return match ? match[1] : '0';
+    }
+
+    function loadGoogleSheet() {
+      const rawUrl = document.getElementById('sheetUrlInput').value.trim();
+      if (!rawUrl) {
+        showModalMessage('구글 시트 URL을 입력해주세요.', 'error');
+        return;
+      }
+      fetchGoogleSheetData(rawUrl, false);
+    }
+
+    // Pure Script Tag Injection (JSONP) - Bypasses all local CORS/file:// restrictions
+    function fetchGoogleSheetData(url, isInitialLoad = false) {
+      const sheetId = extractSheetId(url);
+      if (!sheetId) {
+        showModalMessage('유효한 구글 시트 URL 형태가 아닙니다. https://docs.google.com/spreadsheets/d/... 형식의 주소를 입력하세요.', 'error');
+        return;
+      }
+
+      const gid = extractGid(url);
+      showModalMessage('구글 시트 데이터를 연결하고 있습니다...', 'info');
+
+      // Create global JSONP Callback
+      window.handleGoogleSheetJSONP = function(jsonResponse) {
+        if (fetchTimeoutTimer) clearTimeout(fetchTimeoutTimer);
+
+        if (!jsonResponse || !jsonResponse.table || !jsonResponse.table.rows) {
+          showModalMessage('시트 데이터를 불러오지 못했습니다. 시트가 [웹에 게시] 설정되어 있는지 확인하세요.', 'error');
+          return;
+        }
+
+        const table = jsonResponse.table;
+        const cols = table.cols.map(c => (c && c.label) ? c.label.trim().toLowerCase() : '');
+
+        let parsedVocab = [];
+
+        // Check header indices
+        let wordIdx = cols.findIndex(c => ['word', '단어', '단 어'].includes(c));
+        let meaningIdx = cols.findIndex(c => ['meaning', '뜻', '의미'].includes(c));
+        let posIdx = cols.findIndex(c => ['partofspeech', 'part of speech', '품사'].includes(c));
+        let featureIdx = cols.findIndex(c => ['feature', '특징', '특성', 'example', '예문'].includes(c));
+
+        // Fallback: If headers are missing, assume column index order (0: word, 1: meaning, 2: partOfSpeech, 3: feature)
+        if (wordIdx === -1) wordIdx = 0;
+        if (meaningIdx === -1) meaningIdx = 1;
+        if (posIdx === -1) posIdx = 2;
+        if (featureIdx === -1) featureIdx = 3;
+
+        table.rows.forEach((row, idx) => {
+          const cells = row.c;
+          if (!cells) return;
+
+          const getVal = (i) => (cells[i] && cells[i].v !== null && cells[i].v !== undefined) ? String(cells[i].v).trim() : '';
+
+          const w = getVal(wordIdx);
+          const m = getVal(meaningIdx);
+          const p = getVal(posIdx);
+          const f = getVal(featureIdx);
+
+          // Ignore first row if it matches header title itself
+          if (w && w.toLowerCase() !== 'word' && w !== '단어') {
+            parsedVocab.push({
+              id: `sheet-${idx}`,
+              word: w,
+              meaning: m,
+              partOfSpeech: p,
+              feature: f,
+              bookmarked: false
+            });
+          }
+        });
+
+        if (parsedVocab.length > 0) {
+          vocabList = parsedVocab;
+          sortVocabAlphabetically();
+          localStorage.setItem('vocab_sheet_url', url);
+
+          document.getElementById('sheetStatusText').innerText = `연동 완료 (${vocabList.length}개 단어)`;
+          document.getElementById('syncBadge').className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+
+          if (!isInitialLoad) {
+            showModalMessage(`성공적으로 ${vocabList.length}개의 단어를 불러왔습니다!`, 'success');
+            setTimeout(() => {
+              closeSheetModal();
+              renderApp();
+            }, 800);
+          } else {
+            renderApp();
+          }
+        } else {
+          showModalMessage('시트에 단어 데이터가 비어있거나 올바르지 않습니다.', 'error');
+        }
+      };
+
+      // Append Script Element dynamically
+      const jsonpUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=responseHandler:handleGoogleSheetJSONP&gid=${gid}`;
+      
+      const oldScript = document.getElementById('jsonp_sheet_script');
+      if (oldScript) oldScript.remove();
+
+      const script = document.createElement('script');
+      script.id = 'jsonp_sheet_script';
+      script.src = jsonpUrl;
+      
+      script.onerror = function() {
+        showModalMessage('구글 시트에 연결할 수 없습니다. 시트의 [파일] > [공유] > [웹에 게시] 설정을 꼭 확인해 주세요.', 'error');
+      };
+
+      fetchTimeoutTimer = setTimeout(() => {
+        showModalMessage('시간 초과: 구글 시트 우측 상단 [공유] 및 [웹에 게시]가 완료되었는지 확인해 주세요.', 'error');
+      }, 7000);
+
+      document.body.appendChild(script);
+    }
+
+    function loadSampleData() {
+      localStorage.removeItem('vocab_sheet_url');
+      document.getElementById('sheetUrlInput').value = '';
+      vocabList = [];
+      sortVocabAlphabetically();
+      document.getElementById('sheetStatusText').innerText = "시트 연동 설정";
+      document.getElementById('syncBadge').className = "w-2 h-2 rounded-full bg-amber-400";
+      showModalMessage('연동이 해제되고 단어장이 비워졌습니다.', 'success');
+      setTimeout(() => {
+        closeSheetModal();
+        renderApp();
+      }, 600);
+    }
+
+    function showModalMessage(msg, type) {
+      const msgBox = document.getElementById('modalMessage');
+      msgBox.classList.remove('hidden', 'bg-red-50', 'text-red-700', 'bg-emerald-50', 'text-emerald-700', 'bg-blue-50', 'text-blue-700');
+      
+      if (type === 'error') {
+        msgBox.classList.add('bg-red-50', 'text-red-700');
+      } else if (type === 'info') {
+        msgBox.classList.add('bg-blue-50', 'text-blue-700');
+      } else {
+        msgBox.classList.add('bg-emerald-50', 'text-emerald-700');
+      }
+      msgBox.innerText = msg;
+    }
+
+    function renderApp() {
+      if (activeTab === 'alphabet') {
+        renderAlphabetGrid();
+      } else {
+        handleSearch();
+      }
+    }
+  </script>
+</body>
+</html>
